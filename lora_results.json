@@ -1,0 +1,40 @@
+{
+  "model": "distilbert-base-uncased",
+  "fine_tuned": true,
+  "lora": true,
+  "lora_rank": 16,
+  "lora_alpha": 32,
+  "lora_target_modules": [
+    "q_lin",
+    "v_lin"
+  ],
+  "trainable_params": 887811,
+  "total_params": 67843590,
+  "trainable_ratio_pct": 1.3086,
+  "test_size": 485,
+  "weighted_f1": 0.8309,
+  "macro_f1": 0.8133,
+  "per_class": {
+    "negative": {
+      "precision": 0.7308,
+      "recall": 0.9344,
+      "f1": 0.8201,
+      "support": 61
+    },
+    "neutral": {
+      "precision": 0.8639,
+      "recall": 0.8819,
+      "f1": 0.8729,
+      "support": 288
+    },
+    "positive": {
+      "precision": 0.823,
+      "recall": 0.6838,
+      "f1": 0.747,
+      "support": 136
+    }
+  },
+  "train_runtime_s": 291.8,
+  "train_loss": 0.2894,
+  "split_seed": 42
+}
