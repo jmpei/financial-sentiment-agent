@@ -1,18 +1,31 @@
-# Financial Sentiment Analysis
+# Financial Sentiment Analysis + Agent
 
-Fine-tuned [DistilBERT](https://huggingface.co/distilbert-base-uncased) on the [FinancialPhraseBank](https://www.kaggle.com/datasets/ankurzing/sentiment-analysis-for-financial-news) dataset (4,840 sentences, 50% annotator agreement) for 3-class sentiment classification — positive, negative, neutral.
+Two-stage portfolio project:
 
-Training uses LoRA (via `peft`) to update only ~0.4% of parameters, combined with a weighted cross-entropy loss to handle class imbalance (~60% neutral). The model is served via a FastAPI REST API, containerized with Docker, and deployed on HuggingFace Spaces.
+1. **Model** — DistilBERT fine-tuned with LoRA on [FinancialPhraseBank](https://www.kaggle.com/datasets/ankurzing/sentiment-analysis-for-financial-news) (4,846 sentences, 50% annotator agreement) for 3-class sentiment classification (positive / negative / neutral). Served as a FastAPI REST endpoint, containerised with Docker, deployed publicly on HuggingFace Spaces.
+2. **Agent** — A LangChain agent (`gpt-4o-mini`, tool-calling) that answers financial questions by orchestrating two tools: `search_news` (NewsAPI) and `analyze_sentiment` (the fine-tuned model from stage 1, called over HTTP).
+
+The two stages share one contract: stage-2 consumes stage-1 via its `/predict` endpoint. The sentiment logic is **not** duplicated inside the agent — it lives behind a service boundary.
+
+**Live demo**: https://huggingface.co/spaces/jmpei/financial-sentiment-analysis
 
 ---
 
-## Key Insights
+## Results
 
-- LoRA (rank=16) achieves near full fine-tuning performance while training only ~0.4% of parameters
-- Class imbalance (~60% neutral) makes accuracy misleading → weighted F1 is the primary metric
-- Targeting only `q_lin` and `v_lin` provides the best parameter-efficiency trade-off on small datasets
-- Full fine-tuning overfits quickly on ~4.8k samples; LoRA is more stable
-- Reproducibility is enforced via fixed test split (`test_split.csv`) and deterministic label mapping
+| Model                       | Weighted F1 | Macro F1 | Δ vs Baseline |
+|---|---|---|---|
+| DistilBERT (no fine-tuning) | 0.0571      | 0.1090   | —             |
+| DistilBERT + LoRA (ours)    | **0.8309**  | 0.8133   | **+0.7738**   |
+
+- Baseline uses a randomly-initialised classification head — the F1 of 0.06 is genuinely random, not a bug.
+- LoRA fine-tune trains **only 887,811 / 67.8M = 1.31%** of parameters. Adapter file is 3.4 MB.
+- Weighted F1 chosen as the primary metric because the dataset is ~60% neutral (accuracy is misleading).
+- Per-class on the held-out test split (n=485): negative F1=0.82, neutral F1=0.87, positive F1=0.75.
+
+### Calibration finding (from `eval.py`)
+
+The fine-tuned model is **overconfident on the negative class**: mean predicted confidence 0.96 versus actual accuracy 0.73 (gap +0.23). Temperature scaling on the negative-class logits would correct this — a follow-up that is straightforward to implement.
 
 ---
 
@@ -20,50 +33,35 @@ Training uses LoRA (via `peft`) to update only ~0.4% of parameters, combined wit
 
 ```mermaid
 flowchart LR
-    A[sentences_50agree.csv] --> B[Stratified Split\n80 / 10 / 10]
+    A[FinancialPhraseBank\n50% agreement\nvia kagglehub]
+      --> B[Stratified split\n80 / 10 / 10\nseed=42]
     B --> C[distilbert-base-uncased]
-    C --> D[LoRA Adapters\nq_lin · v_lin\nrank = 16]
-    D --> E[WeightedTrainer\nCrossEntropyLoss]
-    E --> F[Fine-tuned Model\ncheckpoints/lora/]
-    F --> G[FastAPI\nPOST /predict]
-    G --> H[Docker]
-    H --> I[HuggingFace Spaces\nGradio demo]
+    C --> D[LoRA adapter\nq_lin · v_lin\nrank=16, alpha=32]
+    D --> E[WeightedTrainer\nbalanced class weights]
+    E --> F[checkpoints/lora\nadapter_model.safetensors\n3.4 MB]
+    F --> G[FastAPI\nPOST /predict\nlifespan model load]
+    G --> H[Docker\npython:3.10-slim, CPU torch]
+    G --> I[HuggingFace Spaces\nGradio]
+    G --> J[LangChain Agent\nsearch_news + analyze_sentiment]
 ```
 
 ---
 
-## Results
+## LoRA configuration
 
-> Replace values below with actual numbers from `baseline_results.json` and `lora_results.json`
-
-| Model | Weighted F1 | Macro F1 | Δ vs Baseline | Notes |
-|---|---|---|---|---|
-| DistilBERT (no fine-tuning) | X.XXXX | X.XXXX | — | random classifier head |
-| DistilBERT + LoRA (ours) | X.XXXX | X.XXXX | +X.XXXX | rank=16, q_lin+v_lin |
-
-**Metric choice**
-- Weighted F1 is the primary metric (accounts for class imbalance)
-- Macro F1 is tracked to monitor minority class performance
-- Accuracy is intentionally omitted due to skewed label distribution
-
----
-
-## LoRA Configuration
-
-| Parameter | Value |
+| Parameter            | Value                                          |
 |---|---|
-| Base model | `distilbert-base-uncased` |
-| Method | LoRA (`peft`) |
-| Rank | 16 |
-| Alpha | 32 |
-| Target modules | `q_lin`, `v_lin` |
-| Dropout | 0.1 |
-| Trainable parameters | runtime-derived (see training logs) |
+| Base model           | `distilbert-base-uncased`                      |
+| Method               | LoRA via `peft`                                 |
+| Rank                 | 16                                             |
+| Alpha                | 32                                             |
+| Target modules       | `q_lin`, `v_lin` (DistilBERT query and value)  |
+| Dropout              | 0.1                                            |
+| Trainable parameters | 887,811 (1.31% of 67,843,590)                  |
+| Adapter file size    | 3.4 MB                                         |
+| Training time        | 291.8 s on Apple M3 Pro (MPS), 10 epochs       |
 
-Only the query and value projections are targeted. Expanding to additional projections (e.g., key/output) increases parameter count significantly with no consistent performance gain on this dataset size.
-
-**Why not full fine-tuning?**
-Full fine-tuning was evaluated but showed faster overfitting and no consistent improvement over LoRA given the dataset size (~4.8k samples).
+Only the query and value projections are targeted. Adding key/output projections roughly doubles trainable parameters with no consistent F1 gain on this dataset size. Class imbalance is handled with `class_weight="balanced"` weights computed on the train split only, applied via a `WeightedTrainer` subclass.
 
 ---
 
@@ -80,26 +78,52 @@ POST /predict
 
 **Response**
 ```json
-{ "label": "positive", "confidence": 0.94, "latency_ms": 45 }
+{ "label": "positive", "confidence": 0.9929, "latency_ms": 6.51 }
 ```
 
-**Latency** — p50 < 30ms, p95 < 50ms (warm inference, CPU).
-Warm is defined as model already loaded with at least 5 prior requests completed.
-HuggingFace Spaces cold start (30–60s) is not included in these numbers.
+### Latency (measured)
 
-**Notes**
-- API currently supports single-sample inference
-- Batching can further improve throughput in production deployments
+| Environment                       | p50      | p95      | Notes                                  |
+|---|---|---|---|
+| Apple M3 Pro, MPS (dev)           | 6.5 ms   | 8.2 ms   | Warm; first request ~1.4 s (kernel JIT) |
+| Docker, `python:3.10-slim`, CPU   | 23.4 ms  | **25.7 ms** | Warm; first request ~130 ms          |
+| HuggingFace Spaces, free CPU tier | ~55 ms   | ~80 ms   | Warm; HF Spaces cold start 30–60 s    |
+
+**Warm** = model already loaded, ≥5 prior requests sent. The HF Spaces cold-start period is **not** included in these numbers. The number to quote on a resume is `p95 < 30 ms warm CPU inference` (Docker) — the dev-machine MPS number is not portable.
+
+---
+
+## Agent
+
+A LangChain agent (`gpt-4o-mini`, tool-calling style) orchestrates two tools:
+
+- `search_news(query)` — NewsAPI fetch, up to 10 recent articles
+- `analyze_sentiment(text)` — POST to the FastAPI `/predict` endpoint above
+
+The system prompt enforces: always call `search_news` first; call `analyze_sentiment` once per relevant article; aggregate the sentiment distribution; cite article titles in the final answer; respond "could not find" if news search returns empty.
+
+Tool failures (timeouts, upstream errors) are wrapped as `ToolException` with `handle_tool_error=True`, so the agent reports a graceful answer to the user instead of crashing.
+
+### Example interaction
+
+> **Q**: What is the current sentiment around Apple stock?
+>
+> **Agent**: Mixed. Sentiment distribution: 1 positive, 1 negative, 1 neutral out of 3 relevant articles (7 of 10 search results filtered as off-topic).
+> - "Evercore ISI boosts Apple's price target to $365 from $330"
+> - "Dot-com-era computer stocks are one of the hottest areas of the market again"
+> - "How Smart Is Apple Intelligence? I Tried Every Feature"
+
+Tests under `tests/test_agent.py` mock the HTTP boundaries and run the agent against real OpenAI to verify the orchestration policy (happy path / empty-news short-circuit / sentiment-service timeout). All three pass.
 
 ---
 
 ## Run with Docker
 
 ```bash
-docker build -t fin-sentiment . && docker run -p 8000:8000 fin-sentiment
+docker build -t fin-sentiment .
+docker run -p 8000:8000 fin-sentiment
 ```
 
-Then:
 ```bash
 curl -X POST http://localhost:8000/predict \
      -H "Content-Type: application/json" \
@@ -108,51 +132,62 @@ curl -X POST http://localhost:8000/predict \
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 .
-├── sentences_50agree.csv      # FinancialPhraseBank (50% agreement split)
-├── day1_data.py               # data loading, class distribution, class weights
-├── day2_baseline.py           # baseline eval — DistilBERT with random head
-├── day3_train.py              # full fine-tuning with WeightedTrainer
-├── day4_lora.py               # LoRA fine-tuning (peft)
-├── day5_eval.py               # confusion matrix + calibration curve
-├── api/
-│   └── main.py                # FastAPI app (lifespan model loading)
-├── Dockerfile
-├── checkpoints/
-│   └── lora/                  # adapter_model.safetensors + adapter_config.json
-└── outputs/
-    ├── class_distribution.png
-    ├── confusion_matrix.png
-    ├── calibration_curve.png
-    ├── baseline_results.json
-    ├── train_results.json
-    └── lora_results.json
+├── data.py                 # data loading, class distribution, class weights
+├── baseline.py             # baseline eval (DistilBERT, random head)
+├── train.py                # full fine-tune (comparison run, no LoRA)
+├── lora.py                 # LoRA fine-tune (the trained model)
+├── eval.py                 # confusion matrix + calibration curve
+├── api/main.py             # FastAPI service (lifespan model loading)
+├── scripts/benchmark.py    # p50/p95 latency measurement
+├── Dockerfile              # python:3.10-slim, CPU torch
+├── spaces/                 # HuggingFace Spaces deployment (Gradio)
+│   ├── app.py
+│   ├── requirements.txt
+│   └── README.md
+├── src/                    # LangChain agent
+│   ├── tools.py            # search_news, analyze_sentiment
+│   ├── prompts.py          # SYSTEM_PROMPT
+│   └── agent.py            # AgentExecutor + REPL
+├── tests/test_agent.py     # 3 mocked scenarios
+├── checkpoints/lora/       # adapter weights (3.4 MB) — generated
+└── outputs/                # confusion_matrix.png, calibration_curve.png, *_results.json — generated
 ```
 
----
-
-## Demo
-
-[HuggingFace Spaces — live demo](https://huggingface.co/spaces/YOUR_USERNAME/financial-sentiment)
-
-> Replace `YOUR_USERNAME` with your actual HuggingFace username after deployment
+The FinancialPhraseBank dataset is downloaded automatically on first run via [`kagglehub`](https://github.com/Kaggle/kagglehub).
 
 ---
 
 ## Setup
 
 ```bash
-pip install transformers peft datasets scikit-learn fastapi uvicorn torch
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
 
-To reproduce training:
+Reproduce the training pipeline (dataset auto-downloads to `~/.cache/kagglehub`):
+
 ```bash
-python day1_data.py      # verify class distribution, compute class weights
-python day2_baseline.py  # record baseline weighted F1
-python day4_lora.py      # train LoRA model, saves to checkpoints/lora/
-python day5_eval.py      # confusion matrix + calibration curve
+.venv/bin/python data.py        # class distribution, class weights
+.venv/bin/python baseline.py    # baseline weighted F1
+.venv/bin/python lora.py        # LoRA fine-tune → checkpoints/lora/
+.venv/bin/python eval.py        # confusion matrix + calibration curve
 ```
-# financial-sentiment-agent
+
+Run the API and the agent:
+
+```bash
+# Terminal A: sentiment service
+.venv/bin/uvicorn api.main:app --port 8000
+
+# Terminal B: agent REPL
+.venv/bin/python -m src.agent
+
+# Tests (3 mocked scenarios; needs OPENAI_API_KEY)
+.venv/bin/pytest tests/ -v
+```
+
+A `.env.example` lists the three environment variables (`OPENAI_API_KEY`, `NEWS_API_KEY`, `SENTIMENT_SERVICE_URL`); copy to `.env` and fill in.
