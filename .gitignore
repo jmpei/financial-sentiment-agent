@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Env / secrets
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Training outputs (regeneratable, large)
+checkpoints/
+outputs/
+logs/
+
+# Local data caches (kagglehub uses ~/.cache/kagglehub, but keep this in case)
+data/
+*.csv
+!requirements.txt
+notes/
+Process.md
