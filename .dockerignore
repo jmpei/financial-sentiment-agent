@@ -1,0 +1,41 @@
+# Build context is tiny — exclude everything except api/ and checkpoints/lora/
+
+.git
+.gitignore
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+*.egg-info
+
+# Local artefacts not needed in the image
+outputs
+logs
+.DS_Store
+test_split.csv
+*.png
+*_results.json
+sentences_*.csv
+
+# Training scripts — the image only serves
+data.py
+baseline.py
+train.py
+lora.py
+eval.py
+scripts
+
+# Other deployment paths
+spaces
+
+# Docs
+Process.md
+README.md
+CLAUDE.md
+.env
+.env.example
+
+# Earlier comparison checkpoints (only checkpoints/lora goes in)
+checkpoints/full_finetune
