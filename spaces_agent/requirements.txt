@@ -1,0 +1,18 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers>=4.40
+peft>=0.10
+# Pin huggingface_hub < 1.0 — gradio's oauth.py still imports HfFolder, which v1 removed.
+huggingface_hub>=0.25,<1.0
+# Gradio 5.x — 4.x has Spaces localhost-detection issues with Python 3.13 / starlette.
+gradio>=5.0,<6
+# Python 3.13 dropped stdlib `audioop`; pydub (gradio dep) still imports it.
+audioop-lts; python_version >= "3.13"
+# Agent stack
+langchain>=0.3
+langchain-classic>=0.1
+langchain-core>=0.3
+langchain-openai>=0.2
+openai>=1.40
+requests>=2.31
+python-dotenv>=1.0

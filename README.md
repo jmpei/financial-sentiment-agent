@@ -7,7 +7,9 @@ Two-stage portfolio project:
 
 The two stages share one contract: stage-2 consumes stage-1 via its `/predict` endpoint. The sentiment logic is **not** duplicated inside the agent — it lives behind a service boundary.
 
-**Live demo**: https://huggingface.co/spaces/jmpei/financial-sentiment-analysis
+**Live demos**:
+- Model — https://huggingface.co/spaces/jmpei/financial-sentiment-analysis
+- Agent — https://huggingface.co/spaces/jmpei/financial-sentiment-agent (rate limited: 10/hour, 30/day per IP)
 
 ---
 
@@ -144,7 +146,11 @@ curl -X POST http://localhost:8000/predict \
 ├── api/main.py             # FastAPI service (lifespan model loading)
 ├── scripts/benchmark.py    # p50/p95 latency measurement
 ├── Dockerfile              # python:3.10-slim, CPU torch
-├── spaces/                 # HuggingFace Spaces deployment (Gradio)
+├── spaces/                 # HF Spaces: sentiment model demo (Gradio)
+│   ├── app.py
+│   ├── requirements.txt
+│   └── README.md
+├── spaces_agent/           # HF Spaces: agent demo, in-process model, per-IP rate limit
 │   ├── app.py
 │   ├── requirements.txt
 │   └── README.md
