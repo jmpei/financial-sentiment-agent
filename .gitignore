@@ -27,3 +27,7 @@ data/
 !requirements.txt
 notes/
 Process.md
+
+# Superpowers plans + Word docs — local working artifacts, never commit
+docs/superpowers/
+*.docx
