@@ -15,15 +15,36 @@ The two stages share one contract: stage-2 consumes stage-1 via its `/predict` e
 
 ## Results
 
-| Model                       | Weighted F1 | Macro F1 | Δ vs Baseline |
-|---|---|---|---|
-| DistilBERT (no fine-tuning) | 0.0571      | 0.1090   | —             |
-| DistilBERT + LoRA (ours)    | **0.8309**  | 0.8133   | **+0.7738**   |
+All four models evaluated on the **same** held-out test split (seed 42, n=485):
 
-- Baseline uses a randomly-initialised classification head — the F1 of 0.06 is genuinely random, not a bug.
+| Model                        | Weighted F1 | Macro F1 |
+|---|---|---|
+| DistilBERT (random head)     | 0.0571      | 0.1090   |
+| Majority-class (all-neutral) | 0.4425      | 0.2484   |
+| **DistilBERT + LoRA (ours)** | **0.8309**  | 0.8133   |
+| FinBERT zero-shot            | 0.8574      | 0.8486   |
+
+- **Headline:** the LoRA fine-tune scores **+0.3884 weighted F1 over the majority-class floor** (0.4425) — the meaningful improvement, since predicting all-neutral is the real baseline for a ~60% neutral dataset. Against the strongest *credible* model, **FinBERT zero-shot (0.8574) edges out our fine-tune (0.8309) by 0.0265**; that is expected — `ProsusAI/finbert` was itself trained on FinancialPhraseBank — and is reported here rather than hidden.
+- The random-head row (0.0571) is the pre-training floor: that F1 is genuinely random (a fresh classification head), not a bug. Kept for transparency; comparing against it oversells, so it is no longer the headline.
 - LoRA fine-tune trains **only 887,811 / 67.8M = 1.31%** of parameters. Adapter file is 3.4 MB.
 - Weighted F1 chosen as the primary metric because the dataset is ~60% neutral (accuracy is misleading).
 - Per-class on the held-out test split (n=485): negative F1=0.82, neutral F1=0.87, positive F1=0.75.
+
+Reproduce the credible baselines (same test indices):
+
+```bash
+uv run --with transformers --with torch --with scikit-learn --with pandas --with kagglehub python baselines.py
+```
+
+### Why DistilBERT + LoRA over FinBERT?
+
+FinBERT zero-shot is the stronger model on this dataset (0.8574 vs 0.8309) — unsurprising, since `ProsusAI/finbert` was itself fine-tuned on FinancialPhraseBank, so here it is effectively in-domain rather than truly zero-shot. DistilBERT + LoRA is still the right fit for this project:
+
+- **Smaller, cheaper to serve.** DistilBERT (~66M params) is ~40% smaller than FinBERT's BERT-base trunk (~110M), which is what keeps warm CPU inference in the p95 < 30 ms range (see Latency below).
+- **Full control of the label schema and calibration.** Owning the classification head fixes the 3-class encoding and enables the per-class calibration analysis — including the negative-class overconfidence finding below.
+- **The end-to-end fine-tune is the point.** LoRA adapters, balanced class weights, and the serving path are what this project demonstrates, not the leaderboard number alone.
+
+Bottom line: for raw accuracy on this dataset FinBERT wins by 0.03; DistilBERT + LoRA trades that small gap for a smaller, faster, fully-owned model.
 
 ### Calibration finding (from `eval.py`)
 
@@ -140,6 +161,7 @@ curl -X POST http://localhost:8000/predict \
 .
 ├── data.py                 # data loading, class distribution, class weights
 ├── baseline.py             # baseline eval (DistilBERT, random head)
+├── baselines.py            # credible baselines: majority-class + FinBERT zero-shot
 ├── train.py                # full fine-tune (comparison run, no LoRA)
 ├── lora.py                 # LoRA fine-tune (the trained model)
 ├── eval.py                 # confusion matrix + calibration curve

@@ -1,0 +1,56 @@
+{
+  "split_seed": 42,
+  "test_size": 485,
+  "baselines": {
+    "majority_class": {
+      "weighted_f1": 0.4425,
+      "macro_f1": 0.2484,
+      "per_class": {
+        "negative": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 61
+        },
+        "neutral": {
+          "precision": 0.5938,
+          "recall": 1.0,
+          "f1": 0.7451,
+          "support": 288
+        },
+        "positive": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 136
+        }
+      },
+      "predicted_label": "neutral"
+    },
+    "finbert_zero_shot": {
+      "weighted_f1": 0.8574,
+      "macro_f1": 0.8486,
+      "per_class": {
+        "negative": {
+          "precision": 0.7662,
+          "recall": 0.9672,
+          "f1": 0.8551,
+          "support": 61
+        },
+        "neutral": {
+          "precision": 0.9407,
+          "recall": 0.8264,
+          "f1": 0.8799,
+          "support": 288
+        },
+        "positive": {
+          "precision": 0.7613,
+          "recall": 0.8676,
+          "f1": 0.811,
+          "support": 136
+        }
+      },
+      "model": "ProsusAI/finbert"
+    }
+  }
+}

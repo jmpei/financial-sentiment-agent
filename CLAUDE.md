@@ -17,6 +17,7 @@ The two projects share one service contract: Project 2 calls Project 1's HTTP en
 financial-sentiment-agent/
 ├── data.py                 # Data load, class distribution, class weights, WeightedTrainer
 ├── baseline.py             # Baseline evaluation: DistilBERT with no fine-tuning
+├── baselines.py            # Credible baselines: majority-class + FinBERT zero-shot
 ├── train.py                # Full fine-tune with WeightedTrainer (no LoRA, comparison run)
 ├── lora.py                 # LoRA fine-tune (rank=16, q_lin / v_lin)
 ├── eval.py                 # Confusion matrix + calibration curve for fine-tuned model
