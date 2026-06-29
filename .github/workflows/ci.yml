@@ -35,6 +35,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install \
             langchain langchain-openai langchain-community \
-            python-dotenv requests pydantic pytest
+            python-dotenv requests pydantic pytest cachetools
       - name: Run tests
         run: pytest tests/ -v
