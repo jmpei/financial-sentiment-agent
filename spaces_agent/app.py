@@ -241,7 +241,7 @@ with gr.Blocks(title="Financial Sentiment Agent") as demo:
         "Ask a question about a stock, company, or market. The agent searches recent news "
         "(NewsAPI), scores each article with a fine-tuned DistilBERT+LoRA model, then synthesises "
         "an answer.\n\n"
-        f"Rate limited to **{HOUR_LIMIT}/hour, {DAY_LIMIT}/day per IP** "
+        f"Rate limited to **{HOUR_LIMIT}/hour, {DAY_LIMIT}/day per client** "
         f"(global cap {GLOBAL_DAY_LIMIT}/day)."
     )
     question = gr.Textbox(
