@@ -5,14 +5,12 @@ The agent has two tools:
   - search_news        : NewsAPI fetch
   - analyze_sentiment  : local DistilBERT+LoRA inference (loaded once at startup)
 
-Per-IP rate limit via sliding window. HF Spaces routes through a proxy, so the
-real client IP comes from the `x-forwarded-for` header.
+Per-client rate limit via sliding window, keyed on HF's per-user x-ip-token
+(falling back to the connecting host). See ratelimit.py.
 """
 
 import os
-import threading
 import time
-from collections import defaultdict, deque
 from typing import Any, Dict, List
 
 import gradio as gr
@@ -25,6 +23,8 @@ from langchain_core.tools import ToolException, tool
 from langchain_openai import ChatOpenAI
 from peft import PeftModel
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from ratelimit import RateLimiter, client_key, HOUR_LIMIT, DAY_LIMIT, GLOBAL_DAY_LIMIT
 
 # Local dev reads from .env; on HF Spaces these come from Space Secrets.
 load_dotenv()
@@ -174,48 +174,22 @@ _executor: AgentExecutor | None = None
 
 
 # ── rate limiting ──────────────────────────────────────────────────────────
-HOUR_LIMIT       = 10
-DAY_LIMIT        = 30
-GLOBAL_DAY_LIMIT = 200
-
-_lock: threading.Lock = threading.Lock()
-_ip_log: Dict[str, deque] = defaultdict(deque)
-_global_log: deque = deque()
+# Keyed on HF's per-user x-ip-token (falling back to the connecting host); the
+# leftmost X-Forwarded-For is spoofable and is not trusted. See ratelimit.py.
+_limiter = RateLimiter()
+_ip_token_checked = False
 
 
-def _get_ip(request: gr.Request | None) -> str:
+def _client_key(request: gr.Request | None) -> str:
+    global _ip_token_checked
     if request is None:
         return "unknown"
-    # HF Spaces sits behind a proxy: the leftmost x-forwarded-for entry is the real client.
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
-def _check_rate_limit(ip: str) -> tuple[bool, str]:
-    now      = time.time()
-    hour_ago = now - 3600
-    day_ago  = now - 86400
-    with _lock:
-        while _global_log and _global_log[0] < day_ago:
-            _global_log.popleft()
-        if len(_global_log) >= GLOBAL_DAY_LIMIT:
-            return False, f"Daily global limit reached ({GLOBAL_DAY_LIMIT}). Try again tomorrow."
-
-        log = _ip_log[ip]
-        while log and log[0] < day_ago:
-            log.popleft()
-
-        hour_count = sum(1 for t in log if t > hour_ago)
-        if hour_count >= HOUR_LIMIT:
-            return False, f"Hourly limit reached ({HOUR_LIMIT}/hr for your IP). Wait an hour."
-        if len(log) >= DAY_LIMIT:
-            return False, f"Daily limit reached ({DAY_LIMIT}/day for your IP). Try again tomorrow."
-
-        log.append(now)
-        _global_log.append(now)
-        return True, ""
+    if not _ip_token_checked:
+        _ip_token_checked = True
+        has_token = any(k.lower() == "x-ip-token" for k in request.headers)
+        print(f"[rate-limit] x-ip-token present: {has_token}")
+    host = request.client.host if request.client else None
+    return client_key(request.headers, host)
 
 
 # ── handler ────────────────────────────────────────────────────────────────
@@ -238,8 +212,8 @@ def ask(question: str, request: gr.Request | None = None):
     if not question or not question.strip():
         return "Please ask a question about a stock, company, or market.", ""
 
-    ip = _get_ip(request)
-    ok, msg = _check_rate_limit(ip)
+    key = _client_key(request)
+    ok, msg = _limiter.check(key)
     if not ok:
         return f"⚠️ {msg}", ""
 
