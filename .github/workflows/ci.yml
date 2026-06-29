@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compile:
+    # Dependency-free syntax check across every module — catches breakage in the
+    # heavy training/serving scripts (torch, transformers, gradio) without
+    # installing them.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Byte-compile all Python files
+        run: python -m compileall -q .
+
+  test:
+    # Agent tests mock the HTTP boundaries and skip cleanly when OPENAI_API_KEY
+    # is absent, so they run green in CI without secrets. Only the agent-side
+    # dependencies are installed (no torch/transformers needed for these tests).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install agent test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            langchain langchain-openai langchain-community \
+            python-dotenv requests pydantic pytest
+      - name: Run tests
+        run: pytest tests/ -v
