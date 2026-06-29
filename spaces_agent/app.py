@@ -65,10 +65,14 @@ def search_news(query: str) -> List[Dict[str, Any]]:
         "pageSize": 10,
         "sortBy":   "publishedAt",
         "language": "en",
-        "apiKey":   NEWS_API_KEY,
     }
+    # Key in the header, never the query string: requests echoes the URL inside
+    # RequestException messages, and _format_trace renders those in the public
+    # reasoning trace — a key in the query would leak on any NewsAPI failure.
     try:
-        r = requests.get(NEWS_API_URL, params=params, timeout=10)
+        r = requests.get(
+            NEWS_API_URL, params=params, headers={"X-Api-Key": NEWS_API_KEY}, timeout=10
+        )
         r.raise_for_status()
     except requests.RequestException as e:
         raise ToolException(f"NewsAPI failed: {e}") from e
