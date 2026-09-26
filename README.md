@@ -62,11 +62,11 @@ The model is trained on sentences from company reports, but inside the agent it 
 
 FinBERT zero-shot is the stronger model on this dataset (0.8574 vs 0.8309) — unsurprising, since `ProsusAI/finbert` was itself fine-tuned on FinancialPhraseBank, so here it is effectively in-domain rather than truly zero-shot. DistilBERT + LoRA is still the right fit for this project:
 
-- **Smaller, cheaper to serve.** DistilBERT (~66M params) is ~40% smaller than FinBERT's BERT-base trunk (~110M), which is what keeps warm CPU inference in the p95 < 30 ms range (see Latency below).
+- **Smaller, cheaper to serve.** DistilBERT (~66M params) is ~40% smaller than FinBERT's BERT-base trunk (~110M) and measures p95 < 30 ms warm on CPU (see Latency below). FinBERT's latency was not benchmarked here, so the speed gap is expected from size, not measured.
 - **Full control of the label schema and calibration.** Owning the classification head fixes the 3-class encoding and enables the per-class calibration analysis — including the negative-class overconfidence finding below.
 - **The end-to-end fine-tune is the point.** LoRA adapters, balanced class weights, and the serving path are what this project demonstrates, not the leaderboard number alone.
 
-Bottom line: for raw accuracy on this dataset FinBERT wins by 0.03; DistilBERT + LoRA trades that small gap for a smaller, faster, fully-owned model.
+Bottom line: for raw accuracy on this dataset FinBERT wins by 0.03; DistilBERT + LoRA trades that small gap for a smaller, fully-owned model.
 
 On live news (above) that gap shrinks to 0.013 and is within noise.
 
