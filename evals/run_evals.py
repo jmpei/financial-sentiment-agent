@@ -274,6 +274,8 @@ def run_once(system: str, sc: Scenario) -> Dict[str, Any]:
         "answer":        answer,
         "error":         error,
         "llm_calls":     usage.calls,
+        "input_tokens":  usage.input_tokens,
+        "output_tokens": usage.output_tokens,
         "total_tokens":  usage.input_tokens + usage.output_tokens,
         "latency_s":     latency_s,
     }
@@ -297,6 +299,8 @@ def _summarise(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
         "runs":             len(runs),
         "mean_llm_calls":   round(statistics.mean(r["llm_calls"] for r in runs), 2),
         "mean_tokens":      round(statistics.mean(r["total_tokens"] for r in runs)),
+        "mean_input_tokens":  round(statistics.mean(r["input_tokens"] for r in runs)),
+        "mean_output_tokens": round(statistics.mean(r["output_tokens"] for r in runs)),
         "median_latency_s": round(statistics.median(r["latency_s"] for r in runs), 2),
     }
 

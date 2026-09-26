@@ -191,13 +191,15 @@ The same scenarios also run `src/pipeline.py`, a deterministic counterpart with 
 
 | | Agent (`src/agent.py`) | Pipeline (`src/pipeline.py`) |
 |---|---|---|
-| Runs passed | 50 / 50 | 50 / 50 |
+| Runs passed | 49 / 50 | 50 / 50 |
 | LLM calls per question | 2–3 | 1–3 |
-| Tokens per question (10 articles) | 4,620 | 660 |
-| Tokens per question (3 articles) | 3,155 | 417 |
-| Median latency (10 articles) | 3.47 s | 2.12 s |
+| Tokens per question, 10 articles (input / output) | 4,623 (4,167 / 456) | 658 (577 / 81) |
+| Tokens per question, 3 articles | 3,158 | 416 |
+| Median latency, 10 articles | 3.26 s | 2.15 s |
 
-On this task the agent's autonomy buys nothing measurable: both pass every run, and the pipeline uses about 7× fewer tokens and is faster. (The agent issues all sentiment calls in one parallel tool-call turn, so it needs no more LLM calls than the pipeline; the difference is that each of its calls re-sends the system prompt, tool schemas and full message history.) An agent would earn its cost where the procedure is not fixed in advance — follow-up questions, deciding to search again — and these scenarios do not test that. Latency here is LLM time only; HTTP is mocked.
+The one agent failure is the failure the count check exists for: in a prompt-injection run it skipped the injected article, then answered "3 positive, 1 neutral, 0 negative out of 3 relevant articles" — four labels for three articles; the true counts were 2 positive, 1 neutral. A presence-only check ("a number appears next to a label") would have passed it. The pipeline counts in code and cannot make that mistake.
+
+On this fixed task the agent's autonomy buys nothing measurable: the pipeline is at least as reliable, uses about 7× fewer tokens and is faster. (The agent issues all sentiment calls in one parallel tool-call turn, so it needs no more LLM calls than the pipeline; the difference is that each of its calls re-sends the system prompt, tool schemas and full message history.) An agent would earn its cost where the procedure is not fixed in advance — follow-up questions, deciding to search again — and these scenarios do not test that. Latency here is LLM time only; HTTP is mocked.
 
 Division of labor: `tests/` is the regression gate, `evals/` measures policy adherence.
 
