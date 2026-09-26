@@ -48,8 +48,11 @@ def _final_text(messages) -> str:
     return "".join(b.get("text", "") for b in content if isinstance(b, dict))
 
 
-def run(question: str) -> str:
-    """Answer one financial question. Builds the agent on first call (lazy)."""
+def run(question: str, callbacks: list | None = None) -> str:
+    """Answer one financial question. Builds the agent on first call (lazy).
+
+    `callbacks` are added to the Langfuse ones (evals use this to count tokens).
+    """
     global _agent
     if _agent is None:
         _agent = _build_agent()
@@ -57,7 +60,7 @@ def run(question: str) -> str:
         {"messages": [{"role": "user", "content": question}]},
         config={
             "recursion_limit": RECURSION_LIMIT,
-            "callbacks": langfuse_callbacks(),
+            "callbacks": langfuse_callbacks() + (callbacks or []),
         },
     )
     return _final_text(result["messages"])
