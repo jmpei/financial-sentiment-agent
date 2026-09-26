@@ -143,12 +143,13 @@ base_model = AutoModelForSequenceClassification.from_pretrained(
 )
 
 # 5. LoRA config
-# rank=16: capacity sweet spot for a 4,840-sample dataset.
-#   too low (r=4) → underfits; too high (r=32+) → overfits, negates LoRA benefit
+# rank=16: a mid-range LoRA rank, chosen up front — no rank sweep was run.
 #
-# target_modules=["q_lin", "v_lin"]: query and value projections only.
-#   adding k_lin or out_lin roughly doubles trainable params with no F1 gain
-#   on this dataset size — confirmed by the project spec decision.
+# target_modules=["q_lin", "v_lin"]: query and value projections only, the
+#   LoRA paper's choice (Hu et al., 2021). Adding k_lin and out_lin would double
+#   the LoRA matrices (294,912 -> 589,824 params; total trainable 887,811 ->
+#   1,182,723, since the classification head is trained in full either way).
+#   That variant was not run.
 #
 # lora_alpha=32: scaling factor = alpha/rank = 2.0, a common stable default.
 #

@@ -120,7 +120,7 @@ flowchart LR
 | Adapter file size    | 3.4 MB                                         |
 | Training time        | 291.8 s on Apple M3 Pro (MPS), 10 epochs       |
 
-Only the query and value projections are targeted. Adding key/output projections roughly doubles trainable parameters with no consistent F1 gain on this dataset size. Class imbalance is handled with `class_weight="balanced"` weights computed on the train split only, applied via a `WeightedTrainer` subclass.
+Only the query and value projections are targeted — the LoRA paper's choice (Hu et al., 2021). Of the 887,811 trainable parameters, 294,912 are the LoRA matrices and 592,899 the classification head (`pre_classifier` + `classifier`, trained in full). Adding key/output projections would double the LoRA matrices (total trainable 887,811 → 1,182,723); that variant and a rank sweep were not run. Class imbalance is handled with `class_weight="balanced"` weights computed on the train split only, applied via a `WeightedTrainer` subclass.
 
 ---
 

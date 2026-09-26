@@ -1,7 +1,8 @@
 """
 Load FinancialPhraseBank, inspect class distribution, compute class weights.
 
-Output: class_weights dict ready to pass into WeightedTrainer.
+Output: class_weights dict ready to pass into WeightedTrainer — computed on the
+train split only, the same weights lora.py trains with.
 """
 
 import os
@@ -12,6 +13,7 @@ matplotlib.use("Agg")   # non-interactive backend; plt.savefig writes the PNG di
 import matplotlib.pyplot as plt
 import kagglehub
 from collections import Counter
+from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 
 
@@ -97,12 +99,24 @@ print("\nSaved: class_distribution.png")
 # 5. Class weights
 # sklearn 'balanced': weight_i = n_samples / (n_classes * count_i)
 # This upweights the minority negative class without duplicate samples.
+# Train split only (same seed-42 split as lora.py) — the test distribution
+# must never reach training.
+RANDOM_SEED = 42
+train_val_df, _ = train_test_split(
+    df, test_size=0.10, stratify=df["label_id"], random_state=RANDOM_SEED
+)
+train_df, _ = train_test_split(
+    train_val_df,
+    test_size=0.10 / 0.90,
+    stratify=train_val_df["label_id"],
+    random_state=RANDOM_SEED,
+)
 class_ids = np.array(sorted(id2label.keys()))   # [0, 1, 2]
 
 weights = compute_class_weight(
     class_weight="balanced",
     classes=class_ids,
-    y=df["label_id"].values,
+    y=train_df["label_id"].values,
 )
 
 # Dict keyed by integer label id — matches what WeightedTrainer expects
