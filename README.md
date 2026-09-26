@@ -11,6 +11,8 @@ The two stages share one contract: stage-2 consumes stage-1 via its `/predict` e
 - Model — https://huggingface.co/spaces/jmpei/financial-sentiment-analysis
 - Agent — https://huggingface.co/spaces/jmpei/financial-sentiment-agent (rate limited: 10/hour, 30/day per IP)
 
+The agent Space is the one exception to the service boundary: a free Space runs a single container, so `spaces_agent/app.py` loads the same LoRA adapter in-process instead of calling `/predict`. Its system prompt, model name and recursion limit are copies of `src/`; `tests/test_space_copies.py` fails if a copy drifts.
+
 ---
 
 ## Results
@@ -126,7 +128,7 @@ A LangChain 1.0 agent — `langchain.agents.create_agent`, which compiles to a L
 - `search_news(query)` — NewsAPI fetch, up to 10 recent articles
 - `analyze_sentiment(text)` — POST to the FastAPI `/predict` endpoint above
 
-The system prompt enforces: always call `search_news` first; call `analyze_sentiment` once per relevant article; aggregate the sentiment distribution; cite article titles in the final answer; respond "could not find" if news search returns empty.
+The system prompt enforces: always call `search_news` first; call `analyze_sentiment` once per relevant article (off-topic search results are skipped and counted); aggregate the sentiment distribution; cite article titles in the final answer; respond "could not find" if news search returns empty.
 
 Tool failures (timeouts, upstream errors) are wrapped as `ToolException` with `handle_tool_error=True`, so the agent reports a graceful answer to the user instead of crashing. The agent loop is bounded by a LangGraph recursion limit (30), so a misbehaving run cannot spin indefinitely.
 
@@ -140,6 +142,8 @@ Tool failures (timeouts, upstream errors) are wrapped as `ToolException` with `h
 > - "How Smart Is Apple Intelligence? I Tried Every Feature"
 
 Tests under `tests/test_agent.py` mock the HTTP boundaries and run the agent against real OpenAI to verify the orchestration policy (happy path / empty-news short-circuit / sentiment-service timeout). All three pass.
+
+`tests/test_agent_wiring.py` drives the same LangGraph agent with a scripted chat model, so CI — which has no OpenAI key — still exercises tool routing and the tool-error path.
 
 ### Trajectory evals
 
@@ -256,4 +260,4 @@ Run the API and the agent:
 .venv/bin/python -m evals.run_evals
 ```
 
-A `.env.example` lists the three environment variables (`OPENAI_API_KEY`, `NEWS_API_KEY`, `SENTIMENT_SERVICE_URL`); copy to `.env` and fill in.
+`.env.example` lists three required variables (`OPENAI_API_KEY`, `NEWS_API_KEY`, `SENTIMENT_SERVICE_URL`) and three optional Langfuse ones (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`); copy to `.env` and fill in.

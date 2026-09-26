@@ -21,8 +21,9 @@ jobs:
         run: python -m compileall -q .
 
   test:
-    # Agent tests mock the HTTP boundaries and skip cleanly when OPENAI_API_KEY
-    # is absent, so they run green in CI without secrets. Only the agent-side
+    # No OpenAI key in CI: test_agent_wiring.py drives the LangGraph agent with a
+    # scripted chat model, so tool routing and error handling still run here;
+    # the real-LLM tests and trajectory evals skip cleanly. Only the agent-side
     # dependencies are installed (no torch/transformers needed for these tests).
     runs-on: ubuntu-latest
     steps:
