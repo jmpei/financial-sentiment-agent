@@ -1,0 +1,147 @@
+{
+  "n": 99,
+  "label_counts": {
+    "neutral": 40,
+    "positive": 32,
+    "negative": 27
+  },
+  "label_sources": {
+    "claude-draft": 99
+  },
+  "models": {
+    "lora": {
+      "weighted_f1": 0.644,
+      "macro_f1": 0.6433,
+      "per_class": {
+        "negative": {
+          "precision": 0.5833,
+          "recall": 0.7778,
+          "f1": 0.6667,
+          "support": 27
+        },
+        "neutral": {
+          "precision": 0.6842,
+          "recall": 0.65,
+          "f1": 0.6667,
+          "support": 40
+        },
+        "positive": {
+          "precision": 0.68,
+          "recall": 0.5312,
+          "f1": 0.5965,
+          "support": 32
+        }
+      },
+      "confusion_matrix": [
+        [
+          21,
+          3,
+          3
+        ],
+        [
+          9,
+          26,
+          5
+        ],
+        [
+          6,
+          9,
+          17
+        ]
+      ]
+    },
+    "finbert_zero_shot": {
+      "weighted_f1": 0.6569,
+      "macro_f1": 0.6612,
+      "per_class": {
+        "negative": {
+          "precision": 0.7407,
+          "recall": 0.7407,
+          "f1": 0.7407,
+          "support": 27
+        },
+        "neutral": {
+          "precision": 0.6667,
+          "recall": 0.65,
+          "f1": 0.6582,
+          "support": 40
+        },
+        "positive": {
+          "precision": 0.5758,
+          "recall": 0.5938,
+          "f1": 0.5846,
+          "support": 32
+        }
+      },
+      "confusion_matrix": [
+        [
+          20,
+          3,
+          4
+        ],
+        [
+          4,
+          26,
+          10
+        ],
+        [
+          3,
+          10,
+          19
+        ]
+      ]
+    },
+    "majority_class": {
+      "weighted_f1": 0.2325,
+      "macro_f1": 0.1918,
+      "per_class": {
+        "negative": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 27
+        },
+        "neutral": {
+          "precision": 0.404,
+          "recall": 1.0,
+          "f1": 0.5755,
+          "support": 40
+        },
+        "positive": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 32
+        }
+      },
+      "confusion_matrix": [
+        [
+          0,
+          27,
+          0
+        ],
+        [
+          0,
+          40,
+          0
+        ],
+        [
+          0,
+          32,
+          0
+        ]
+      ]
+    }
+  },
+  "bootstrap": {
+    "resamples": 10000,
+    "lora_weighted_f1_ci95": [
+      0.5467,
+      0.7383
+    ],
+    "lora_minus_finbert_ci95": [
+      -0.1047,
+      0.0786
+    ]
+  }
+}

@@ -38,6 +38,26 @@ Reproduce the credible baselines (same test indices):
 uv run --with transformers --with torch --with scikit-learn --with pandas --with kagglehub python baselines.py
 ```
 
+### On live news (domain shift)
+
+The model is trained on sentences from company reports, but inside the agent it scores NewsAPI headlines. `domain_shift.py` runs the same models on a frozen snapshot of live `search_news` results (`domain_shift_headlines.jsonl`: 172 fetched, 99 kept after dropping 59 off-topic items and 14 duplicate stories), labelled with the FinancialPhraseBank guideline — from an investor's point of view, is this news positive, negative or neutral for the company or market it is about:
+
+| Model | Weighted F1, news (n=99) | Weighted F1, FPB test (n=485) |
+|---|---|---|
+| Majority-class (all-neutral) | 0.2325 | 0.4425 |
+| **DistilBERT + LoRA (ours)** | **0.6440** (95% CI 0.547–0.738) | 0.8309 |
+| FinBERT zero-shot | 0.6569 | 0.8574 |
+
+- Both models lose ~0.19–0.20 weighted F1 off-domain. The label mix shifts as well: 40% neutral on news vs ~60% in FinancialPhraseBank.
+- FinBERT's in-domain edge does not carry over. On news the gap is 0.013, and a paired bootstrap (10,000 resamples) puts LoRA − FinBERT at [−0.105, +0.079] — no measurable difference at this size.
+- Our model over-predicts negative here too (36 predicted vs 27 true) — the same bias the calibration section shows.
+- **The labels are drafts:** all 99 rows have `label_source: claude-draft` (LLM-labelled, not yet reviewed by the author); `domain_shift_results.json` reports the source counts.
+
+```bash
+.venv/bin/python -m scripts.fetch_headlines   # re-fetch (overwrites the snapshot; labels must be redone)
+.venv/bin/python domain_shift.py              # → domain_shift_results.json
+```
+
 ### Why DistilBERT + LoRA over FinBERT?
 
 FinBERT zero-shot is the stronger model on this dataset (0.8574 vs 0.8309) — unsurprising, since `ProsusAI/finbert` was itself fine-tuned on FinancialPhraseBank, so here it is effectively in-domain rather than truly zero-shot. DistilBERT + LoRA is still the right fit for this project:
@@ -47,6 +67,8 @@ FinBERT zero-shot is the stronger model on this dataset (0.8574 vs 0.8309) — u
 - **The end-to-end fine-tune is the point.** LoRA adapters, balanced class weights, and the serving path are what this project demonstrates, not the leaderboard number alone.
 
 Bottom line: for raw accuracy on this dataset FinBERT wins by 0.03; DistilBERT + LoRA trades that small gap for a smaller, faster, fully-owned model.
+
+On live news (above) that gap shrinks to 0.013 and is within noise.
 
 ### Calibration (`eval.py`, `calibrate.py`)
 
@@ -225,8 +247,11 @@ curl -X POST http://localhost:8000/predict \
 ├── lora.py                 # LoRA fine-tune (the trained model)
 ├── eval.py                 # confusion matrix + calibration curve
 ├── calibrate.py            # temperature scaling: fit T on val, ECE before/after on test
+├── domain_shift.py         # same three models on live NewsAPI headlines
+├── domain_shift_headlines.jsonl  # frozen, labelled snapshot of search_news results
 ├── api/main.py             # FastAPI service (lifespan model loading)
 ├── scripts/benchmark.py    # p50/p95 latency measurement
+├── scripts/fetch_headlines.py  # fetch the domain-shift snapshot via search_news
 ├── Dockerfile              # python:3.10-slim, CPU torch
 ├── spaces/                 # HF Spaces: sentiment model demo (Gradio)
 │   ├── app.py
