@@ -55,6 +55,7 @@ The model is trained on sentences from company reports, but inside the agent it 
 
 ```bash
 .venv/bin/python -m scripts.fetch_headlines   # re-fetch (overwrites the snapshot; labels must be redone)
+.venv/bin/python -m scripts.review_labels     # review labels: Enter keeps, 1-5 replace; resumable
 .venv/bin/python domain_shift.py              # → domain_shift_results.json
 ```
 
@@ -254,6 +255,7 @@ curl -X POST http://localhost:8000/predict \
 ├── api/main.py             # FastAPI service (lifespan model loading)
 ├── scripts/benchmark.py    # p50/p95 latency measurement
 ├── scripts/fetch_headlines.py  # fetch the domain-shift snapshot via search_news
+├── scripts/review_labels.py    # review those labels one keypress per row
 ├── Dockerfile              # python:3.10-slim, CPU torch
 ├── spaces/                 # HF Spaces: sentiment model demo (Gradio)
 │   ├── app.py
