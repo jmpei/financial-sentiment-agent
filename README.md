@@ -48,9 +48,18 @@ FinBERT zero-shot is the stronger model on this dataset (0.8574 vs 0.8309) — u
 
 Bottom line: for raw accuracy on this dataset FinBERT wins by 0.03; DistilBERT + LoRA trades that small gap for a smaller, faster, fully-owned model.
 
-### Calibration finding (from `eval.py`)
+### Calibration (`eval.py`, `calibrate.py`)
 
-The fine-tuned model is **overconfident on the negative class**: mean predicted confidence 0.96 versus actual accuracy 0.73 (gap +0.23). Temperature scaling on the negative-class logits would correct this — a follow-up that is straightforward to implement.
+`eval.py` found the raw model overconfident, most of all on the negative class: when it predicts negative, mean confidence is 0.96 but precision is 0.73 (gap +0.23).
+
+`calibrate.py` applies **temperature scaling** — every logit divided by one scalar `T`, fit by minimising NLL on the val split. The argmax cannot change, so F1 is identical; only the confidences move. Fitted `T = 1.7952`, judged on the test split:
+
+| | ECE (15 bins) | NLL | Weighted F1 | Negative: conf / precision |
+|---|---|---|---|---|
+| Raw (`T = 1`)     | 0.1060 | 0.5459 | 0.8309 | 0.96 / 0.73 |
+| Scaled (`T = 1.7952`) | **0.0473** | **0.4090** | 0.8309 | 0.91 / 0.73 |
+
+ECE drops 55%, and the neutral / positive gaps close to +0.03 / −0.00. The negative gap only narrows to +0.18: one global scalar cannot fix a bias toward a single class. The model over-predicts negative (recall 0.93, precision 0.73) — consistent with the balanced class weights upweighting the minority class, though not isolated by an unweighted run — so a per-class correction — vector scaling or a bias term fit on val — would be the next step. The API and both Spaces serve the scaled probabilities (`TEMPERATURE` in each; `tests/test_space_copies.py` pins them to `calibration_results.json`).
 
 ---
 
@@ -106,7 +115,7 @@ POST /predict
 
 **Response**
 ```json
-{ "label": "positive", "confidence": 0.9929, "latency_ms": 6.51 }
+{ "label": "positive", "confidence": 0.8228, "latency_ms": 8.06 }
 ```
 
 ### Latency (measured)
@@ -201,6 +210,7 @@ curl -X POST http://localhost:8000/predict \
 ├── train.py                # full fine-tune (comparison run, no LoRA)
 ├── lora.py                 # LoRA fine-tune (the trained model)
 ├── eval.py                 # confusion matrix + calibration curve
+├── calibrate.py            # temperature scaling: fit T on val, ECE before/after on test
 ├── api/main.py             # FastAPI service (lifespan model loading)
 ├── scripts/benchmark.py    # p50/p95 latency measurement
 ├── Dockerfile              # python:3.10-slim, CPU torch
@@ -242,6 +252,7 @@ Reproduce the training pipeline (dataset auto-downloads to `~/.cache/kagglehub`)
 .venv/bin/python baseline.py    # baseline weighted F1
 .venv/bin/python lora.py        # LoRA fine-tune → checkpoints/lora/
 .venv/bin/python eval.py        # confusion matrix + calibration curve
+.venv/bin/python calibrate.py   # temperature scaling → calibration_results.json
 ```
 
 Run the API and the agent:

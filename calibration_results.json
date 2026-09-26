@@ -1,0 +1,57 @@
+{
+  "temperature": 1.7952,
+  "fit_on": "val split (n=485), minimise NLL",
+  "evaluated_on": "test split (n=485)",
+  "ece_bins": 15,
+  "before": {
+    "ece": 0.106,
+    "nll": 0.5459,
+    "weighted_f1": 0.8309,
+    "per_class": {
+      "negative": {
+        "n_predicted": 78,
+        "mean_predicted_conf": 0.9582,
+        "precision": 0.7308,
+        "overconfidence_gap": 0.2275
+      },
+      "neutral": {
+        "n_predicted": 294,
+        "mean_predicted_conf": 0.9472,
+        "precision": 0.8639,
+        "overconfidence_gap": 0.0832
+      },
+      "positive": {
+        "n_predicted": 113,
+        "mean_predicted_conf": 0.8979,
+        "precision": 0.823,
+        "overconfidence_gap": 0.0749
+      }
+    }
+  },
+  "after": {
+    "ece": 0.0473,
+    "nll": 0.409,
+    "weighted_f1": 0.8309,
+    "per_class": {
+      "negative": {
+        "n_predicted": 78,
+        "mean_predicted_conf": 0.9091,
+        "precision": 0.7308,
+        "overconfidence_gap": 0.1783
+      },
+      "neutral": {
+        "n_predicted": 294,
+        "mean_predicted_conf": 0.8905,
+        "precision": 0.8639,
+        "overconfidence_gap": 0.0265
+      },
+      "positive": {
+        "n_predicted": 113,
+        "mean_predicted_conf": 0.819,
+        "precision": 0.823,
+        "overconfidence_gap": -0.004
+      }
+    }
+  },
+  "split_seed": 42
+}

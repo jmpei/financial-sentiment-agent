@@ -23,6 +23,9 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 BASE_MODEL  = "distilbert-base-uncased"
 ADAPTER_DIR = "checkpoints/lora"
 MAX_LENGTH  = 128
+# Fit on the val split by calibrate.py (calibration_results.json). Dividing the
+# logits by T softens overconfident probabilities; the argmax is unchanged.
+TEMPERATURE = 1.7952
 
 LABEL2ID = {"negative": 0, "neutral": 1, "positive": 2}
 ID2LABEL = {v: k for k, v in LABEL2ID.items()}
@@ -105,7 +108,7 @@ def predict(req: PredictRequest, request: Request):
             input_ids=tokens["input_ids"],
             attention_mask=tokens["attention_mask"],
         ).logits
-        probs  = torch.softmax(logits, dim=-1)[0]
+        probs  = torch.softmax(logits / TEMPERATURE, dim=-1)[0]
         idx    = int(probs.argmax().item())
 
     latency_ms = (time.perf_counter() - start) * 1000

@@ -30,6 +30,9 @@ load_dotenv()
 # ── sentiment model (load once at startup) ──────────────────────────────────
 LABEL2ID = {"negative": 0, "neutral": 1, "positive": 2}
 ID2LABEL = {v: k for k, v in LABEL2ID.items()}
+# Fit on the val split by calibrate.py (calibration_results.json). Dividing the
+# logits by T softens overconfident probabilities; the argmax is unchanged.
+TEMPERATURE = 1.7952
 
 tokenizer = AutoTokenizer.from_pretrained("checkpoints/lora")
 base = AutoModelForSequenceClassification.from_pretrained(
@@ -106,7 +109,7 @@ def analyze_sentiment(text: str) -> Dict[str, Any]:
     tokens = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
     with torch.no_grad():
         probs = torch.softmax(
-            model(input_ids=tokens["input_ids"], attention_mask=tokens["attention_mask"]).logits,
+            model(input_ids=tokens["input_ids"], attention_mask=tokens["attention_mask"]).logits / TEMPERATURE,
             dim=-1,
         )[0]
     pred = int(probs.argmax())
