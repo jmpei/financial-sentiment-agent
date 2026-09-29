@@ -32,6 +32,8 @@ All four models evaluated on the **same** held-out test split (seed 42, n=485):
 - Weighted F1 chosen as the primary metric because the dataset is ~60% neutral (accuracy is misleading).
 - Per-class on the held-out test split (n=485): negative F1=0.82, neutral F1=0.87, positive F1=0.75.
 
+![Confusion matrix of the LoRA model on the test split](outputs/confusion_matrix.png)
+
 Reproduce the credible baselines (same test indices):
 
 ```bash
@@ -75,6 +77,8 @@ On live news (above) that gap shrinks to 0.013 and is within noise.
 
 `eval.py` found the raw model overconfident, most of all on the negative class: when it predicts negative, mean confidence is 0.96 but precision is 0.73 (gap +0.23).
 
+![One-vs-rest calibration curves per class, raw confidences (T = 1), test split](outputs/calibration_curve.png)
+
 `calibrate.py` applies **temperature scaling** — every logit divided by one scalar `T`, fit by minimising NLL on the val split. The argmax cannot change, so F1 is identical; only the confidences move. Fitted `T = 1.7952`, judged on the test split:
 
 | | ECE (15 bins) | NLL | Weighted F1 | Negative: conf / precision |
@@ -102,7 +106,7 @@ flowchart LR
     G --> J[LangChain Agent\nsearch_news + analyze_sentiment]
     G --> K[MCP server\nstdio, any MCP client]
     J --> L[Langfuse traces\noptional]
-    J --> M[evals\n8 trajectory scenarios]
+    J --> M[evals\n10 trajectory scenarios]
 ```
 
 ---
@@ -252,6 +256,7 @@ curl -X POST http://localhost:8000/predict \
 ├── calibrate.py            # temperature scaling: fit T on val, ECE before/after on test
 ├── domain_shift.py         # same three models on live NewsAPI headlines
 ├── domain_shift_headlines.jsonl  # frozen, labelled snapshot of search_news results
+├── *_results.json          # metrics written by baseline, baselines, lora, calibrate, domain_shift
 ├── api/main.py             # FastAPI service (lifespan model loading)
 ├── scripts/benchmark.py    # p50/p95 latency measurement
 ├── scripts/fetch_headlines.py  # fetch the domain-shift snapshot via search_news
@@ -275,7 +280,7 @@ curl -X POST http://localhost:8000/predict \
 ├── mcp_server/server.py    # MCP stdio server over /predict
 ├── tests/                  # agent wiring + orchestration, tools, rate limit, copy drift, MCP
 ├── checkpoints/lora/       # adapter weights (3.4 MB) — generated
-└── outputs/                # confusion_matrix.png, calibration_curve.png, *_results.json — generated
+└── outputs/                # eval.py: confusion_matrix.png, calibration_curve.png (tracked), eval_results.json
 ```
 
 The FinancialPhraseBank dataset is downloaded automatically on first run via [`kagglehub`](https://github.com/Kaggle/kagglehub).

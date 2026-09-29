@@ -18,7 +18,9 @@ env/
 
 # Training outputs (regeneratable, large)
 checkpoints/
-outputs/
+outputs/*
+!outputs/confusion_matrix.png
+!outputs/calibration_curve.png
 logs/
 
 # Local data caches (kagglehub uses ~/.cache/kagglehub, but keep this in case)
