@@ -36,3 +36,5 @@ docs/superpowers/
 
 # Agent instructions — local only, not part of the published repo
 CLAUDE.md
+AGENTS.md
+.codegraph/
