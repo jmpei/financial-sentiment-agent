@@ -42,18 +42,18 @@ uv run --with transformers --with torch --with scikit-learn --with pandas --with
 
 ### On live news (domain shift)
 
-The model is trained on sentences from company reports, but inside the agent it scores NewsAPI headlines. `domain_shift.py` runs the same models on a frozen snapshot of live `search_news` results (`domain_shift_headlines.jsonl`: 172 fetched, 99 kept after dropping 59 off-topic items and 14 duplicate stories), labelled with the FinancialPhraseBank guideline — from an investor's point of view, is this news positive, negative or neutral for the company or market it is about:
+The model is trained on sentences from company reports, but inside the agent it scores NewsAPI headlines. `domain_shift.py` runs the same models on a frozen snapshot of live `search_news` results (`domain_shift_headlines.jsonl`: 172 fetched, 97 kept after dropping 59 off-topic items and 16 duplicate stories), labelled with the FinancialPhraseBank guideline — from an investor's point of view, is this news positive, negative or neutral for the company or market it is about:
 
-| Model | Weighted F1, news (n=99) | Weighted F1, FPB test (n=485) |
+| Model | Weighted F1, news (n=97) | Weighted F1, FPB test (n=485) |
 |---|---|---|
-| Majority-class (all-neutral) | 0.2325 | 0.4425 |
-| **DistilBERT + LoRA (ours)** | **0.6440** (95% CI 0.547–0.738) | 0.8309 |
-| FinBERT zero-shot | 0.6569 | 0.8574 |
+| Majority-class (all-neutral) | 0.2408 | 0.4425 |
+| **DistilBERT + LoRA (ours)** | **0.6582** (95% CI 0.562–0.752) | 0.8309 |
+| FinBERT zero-shot | 0.6712 | 0.8574 |
 
-- Both models lose ~0.19–0.20 weighted F1 off-domain. The label mix shifts as well: 40% neutral on news vs ~60% in FinancialPhraseBank.
-- FinBERT's in-domain edge does not carry over. On news the gap is 0.013, and a paired bootstrap (10,000 resamples) puts LoRA − FinBERT at [−0.105, +0.079] — no measurable difference at this size.
-- Our model over-predicts negative here too (36 predicted vs 27 true) — the same bias the calibration section shows.
-- **The labels are drafts:** all 99 rows have `label_source: claude-draft` (LLM-labelled, not yet reviewed by the author); `domain_shift_results.json` reports the source counts.
+- Both models lose ~0.17–0.19 weighted F1 off-domain. The label mix shifts as well: 41% neutral on news vs ~60% in FinancialPhraseBank.
+- FinBERT's in-domain edge does not carry over. On news the gap is 0.013, and a paired bootstrap (10,000 resamples) puts LoRA − FinBERT at [−0.107, +0.081] — no measurable difference at this size.
+- Our model over-predicts negative here too (35 predicted vs 27 true) — the same bias the calibration section shows.
+- **How the labels were made:** an LLM drafted a label and a one-line reason for all 172 rows (including the off-topic and duplicate calls); the author then reviewed every row with the draft visible and kept all 172. Treat them as LLM labels checked by one reviewer, not as independent human labels. Each row's `label_source` and pre-review `draft_label` are in the JSONL; `domain_shift_results.json` reports the source counts.
 
 ```bash
 .venv/bin/python -m scripts.fetch_headlines   # re-fetch (overwrites the snapshot; labels must be redone)
