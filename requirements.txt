@@ -25,7 +25,7 @@ python-dotenv>=1.0
 langfuse>=3.0
 
 # ── MCP server ──
-mcp>=1.9
+mcp>=1.9,<2
 
 # ── Dev / test ──
 pytest>=8.0

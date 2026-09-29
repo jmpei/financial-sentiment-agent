@@ -36,7 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install \
             langchain langchain-openai \
-            python-dotenv requests pydantic pytest cachetools mcp
+            python-dotenv requests pydantic pytest cachetools "mcp>=1.9,<2"
       - name: Run tests
         run: pytest tests/ -v
       - name: Run trajectory evals (skips without OPENAI_API_KEY)
